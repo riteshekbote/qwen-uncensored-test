@@ -47,6 +47,16 @@ jobs:
           export PATH="$HOME/.local/bin:$PATH"
           ollama --version
 
+      - name: Start Ollama server (no systemd on runners)
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          nohup ollama serve > /tmp/ollama.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -s http://127.0.0.1:11434 > /dev/null 2>&1; then echo "ollama up after ${i}s"; break; fi
+            sleep 1
+          done
+          curl -s http://127.0.0.1:11434 && echo " -> API reachable"
+
       - name: Pull model
         run: |
           export PATH="$HOME/.local/bin:$PATH"
