@@ -74,7 +74,10 @@ jobs:
             echo "" >> results/run-$MODEL_NAME.md
             echo "### $label" >> results/run-$MODEL_NAME.md
             echo "" >> results/run-$MODEL_NAME.md
-            timeout 300 ollama run "$MODEL_TAG" "$prompt" >> results/run-$MODEL_NAME.md 2>&1 || echo "[TIMEOUT/ERROR rc=$?]" >> results/run-$MODEL_NAME.md
+            timeout 300 curl -s http://127.0.0.1:11434/api/generate \
+              -d "{\"model\":\"$MODEL_TAG\",\"prompt\":$(python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$prompt"),\"stream\":false,\"think\":false,\"options\":{\"num_predict\":800}}" \
+              | python3 -c 'import json,sys; print(json.load(sys.stdin).get("response","[NO RESPONSE]"))' >> results/run-$MODEL_NAME.md 2>&1 \
+              || echo "[TIMEOUT/ERROR rc=$?]" >> results/run-$MODEL_NAME.md
           }
 
           run_prompt "Refusal probe (authorized security research)" \
@@ -95,5 +98,9 @@ jobs:
           git config user.name "riteshekbote"
           git config user.email "riteshekbote@users.noreply.github.com"
           git add results/
-          git diff --cached --quiet || git commit -m "results: qwen3 $MODEL_NAME test $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          git push
+          git diff --cached --quiet || {
+            git pull --rebase origin main || git reset --hard origin/main
+            git add results/
+            git commit -m "results: qwen3 $MODEL_NAME test $(date -u +%Y-%m-%dT%H:%M:%SZ)" || true
+          }
+          git push origin HEAD:main
